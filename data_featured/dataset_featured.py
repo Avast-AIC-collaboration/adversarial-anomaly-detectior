@@ -13,7 +13,7 @@ class DatasetFeatures:
         pass
 
     @classmethod
-    def from_normal_distribution_independent(cls, features=['F1', 'F2'], mean=[20, 10], var=[12, 4], size=1000, force=False):
+    def from_normal_distribution_independent(cls, features=['F1', 'F2'], mean=[0.3, 0.5], var=[0.1, 0.2], size=1000, force=False):
         data = pd.DataFrame()
 
         for l, m, v in zip(features, mean, var):
