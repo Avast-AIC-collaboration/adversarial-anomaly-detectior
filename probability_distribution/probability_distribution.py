@@ -2,10 +2,12 @@ import pandas as pd
 import numpy as np
 
 
-class CumulativeProbCached:
+class ProbabilityDistribution:
 
     def __init__(self, data):
         self.data = data
+        self.cache = {}
+        self.total = len(data)
 
     @classmethod
     def from_file(cls, file_name, force=False):
