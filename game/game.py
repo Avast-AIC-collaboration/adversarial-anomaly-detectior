@@ -26,14 +26,14 @@ class Game(object):
 
             # Add ctr: forall a: theta_a * r_a <= Ua
             m.addConstrs(
-                ((1-theta[a]) * self.utils[a]/(1-discount) <= u for a in self.actions), "BRs")
+                ((1-theta[a]) * self.utils[a]/(1-self.discount) <= u for a in self.actions), "BRs")
             print('Best response constraints done.')
 
             m.addConstr(
                 quicksum(theta[i] * self.dist[i] for i in self.actions) <= self.FPrate, "False-positive-rate")
 
 
-            m.write('./model.lp')
+            # m.write('./model.lp')
 
             m.optimize()
 
@@ -58,4 +58,4 @@ def testThisClass():
     g = Game(actions, util, dist, FPrate, discount)
     g.solve()
 
-
+# testThisClass()
