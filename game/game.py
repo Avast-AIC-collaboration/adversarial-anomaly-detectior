@@ -39,6 +39,7 @@ class Game(object):
             #     print(v.varName, v.x)
 
             print('Obj:', m.objVal)
+            return m.objVal
 
         except GurobiError as e:
             print(str(e))
@@ -49,6 +50,14 @@ class UtilityFunctions:
     @staticmethod
     def utility1(m):
         return m[0]
+
+    def utilityPlus(m):
+        # print(m)
+        return m[0] + m[1]
+
+    def utilityMul(m):
+        # print(m)
+        return m[0] * m[1]
 
 
 def testThisClass():
