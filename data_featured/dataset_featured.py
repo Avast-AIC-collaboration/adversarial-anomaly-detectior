@@ -4,9 +4,27 @@ import numpy as np
 
 class DatasetFeatures:
 
-    def __init__(self, data, features):
+    def __init__(self, data:pd.DataFrame, features):
         self.data = data
         self.features = features
+
+        mmin = data.min()
+        mmax = data.max()
+        feature_size = mmax - mmin
+
+        margin = 0.4
+        self.mins = data.min() - feature_size*margin
+        self.maxs = data.max() + feature_size*margin
+        self.limits = np.c_[self.mins, self.maxs]
+        self.feature_size = self.maxs - self.mins
+        #
+        # print('creating datasetFeatured:')
+        # print(self.data)
+        # print(self.mins)
+        # print(self.maxs)
+        # print(self.limits)
+        # print(self.feature_size)
+        # print('done')
 
     @classmethod
     def from_file(cls, file_name, force=False):
@@ -23,7 +41,3 @@ class DatasetFeatures:
         res = cls(data, features=features)
         return res
 
-
-# def testThisClass():
-#     c = DatasetFeatures.from_normal_distribution_independent()
-#     print(c.data)

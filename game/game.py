@@ -1,5 +1,5 @@
-import multidict
 from gurobipy import *
+from functools import reduce
 
 class Game(object):
     def __init__(self, actions, utils, mesh, dist, FPrate, discount):
@@ -51,13 +51,20 @@ class UtilityFunctions:
     def utility1(m):
         return m[0]
 
-    def utilityPlus(m):
+    def utility2(m):
+        return m[1]
+
+    def utilitySum(m):
         # print(m)
-        return m[0] + m[1]
+        return m.sum()
 
     def utilityMul(m):
         # print(m)
-        return m[0] * m[1]
+        return reduce((lambda x, y: x*y), m)
+        # return m[0] * m[1]
+
+    def utilityUniform(m):
+        return 1.
 
 
 def testThisClass():
