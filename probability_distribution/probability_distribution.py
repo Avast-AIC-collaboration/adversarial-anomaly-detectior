@@ -9,11 +9,21 @@ class ProbabilityDistribution:
         self.data_featured = data_featured
         self.prb = gaussian_kde(data_featured.data.T)
         self.bins = bins
+        self.prb_cache = dict()
 
     def getPrb(self, x):
-        p0 = x
-        p1 = [v + self.data_featured.feature_size[i]/self.bins for i,v in enumerate(x)]
-        return self.prb.integrate_box(p0, np.array(p1))
+        x_tup = tuple([round(elem, 5) for elem in x])
+        if x_tup in self.prb_cache.keys():
+            # print('From cache.')
+            return self.prb_cache[x_tup]
+        else:
+            # print('From computation.')
+            p0 = x
+            p1 = [v + self.data_featured.feature_size[i]/self.bins for i,v in enumerate(x)]
+            val = self.prb.integrate_box(p0, np.array(p1), maxpts=50)
+            self.prb_cache.update({x_tup:val})
+            # print((p0, p1, val))
+            return val
 
 
     def plot(self, ax):

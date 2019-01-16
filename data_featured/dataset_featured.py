@@ -12,7 +12,8 @@ class DatasetFeatures:
         mmax = data.max()
         feature_size = mmax - mmin
 
-        margin = 0.4
+        # margin = 0.4
+        margin = 0.0
         self.mins = data.min() - feature_size*margin
         self.maxs = data.max() + feature_size*margin
         self.limits = np.c_[self.mins, self.maxs]

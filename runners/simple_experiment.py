@@ -11,17 +11,24 @@ from game.game import Game, UtilityFunctions
 
 # DEFINE CONSTANTS
 
-def prepare_action_and_mesh(prb, discretize):
+def prepare_defender(prb, discretize):
     spaces = [np.linspace(prb.data_featured.mins[d], prb.data_featured.maxs[d], discretize) for d in range(prb.prb.d)]
+    print(spaces)
     x = np.meshgrid(*spaces)
-    # x = np.mgrid(*spaces)
-
     mesh = np.stack([xsub.ravel() for xsub in x], axis=-1)
-    print(mesh)
     actions = range(int(discretize ** prb.prb.d))
     return actions, mesh, x
 
-def solve_simple_game(data:DatasetFeatures, discretize=50, FPrate=0.1, discount=0, plot=True):
+def prepare_attacker(prb, discretize):
+    step = (prb.data_featured.maxs - prb.data_featured.mins) / (discretize -1)
+    spaces = [np.array(range(discretize)) * step[d] for d in range(prb.prb.d)]
+    print(spaces)
+    # spaces = [np.linspace(0, 1, discretize) for d in range(prb.prb.d)]
+    x = np.meshgrid(*spaces)
+    mesh = np.stack([xsub.ravel() for xsub in x], axis=-1)
+    return mesh
+
+def solve_simple_game(data:DatasetFeatures, discretize=10, FPrate=0.1, discount=0.9, att_type='replace', plot=True):
 
     # turn data into distribution
     prb = ProbabilityDistribution(data, discretize)
@@ -30,30 +37,36 @@ def solve_simple_game(data:DatasetFeatures, discretize=50, FPrate=0.1, discount=
     # util = UtilityFunctions.utilityUniform
     util = UtilityFunctions.utility1
     # util = UtilityFunctions.utilityMul
+    # util = UtilityFunctions.utilitySum
 
-    actions, mesh, x = prepare_action_and_mesh(prb, discretize)
+    actions, mesh, x = prepare_defender(prb, discretize)
+    att_act = prepare_attacker(prb, discretize)
+    # print('attackr actions')
+    # print(att_act)
 
-    g = Game(actions, util, mesh, prb.getPrb, FPrate, discount)
+
+    print('Solving game ....')
+    g = Game(actions, util, mesh, prb.getPrb, FPrate, discount, att_act, att_type)
     value = g.solve()
     decisions = np.array(g.thetas).reshape(x[0].shape)
 
-    for a in actions:
-        print(mesh[a])
-
     if plot:
+        print('Plotting data')
         fig, ax = plt.subplots(2, 3)
         prb.plot(ax[0, 0])
         plot_defender_strategy(ax[0,1], data, decisions)
         plot_defender_fp(actions, ax[0,2], data, g, mesh, prb, x)
-        plot_defender_dist(actions, ax[1,2], data, mesh, prb, x)
-        plot_attacker_utils(actions, ax[1,1], data, g, mesh, util, x)
-        plot_attacker_utils_orig(actions, ax[1,0], data, mesh, util, x)
+        # plot_defender_dist(actions, ax[1,2], data, mesh, prb, x)
+        plot_attacker_utils(actions, att_act, ax[1,2], data, g, mesh, util, x, att_type=att_type, dist=prb.getPrb)
+        plot_attacker_utils_orig(actions, att_act, ax[1,0], data, mesh, util, x)
+        plot_attacker_det_prb(actions, att_act, ax[1,1], data, g, mesh, util, x, att_type=att_type, dist=prb.getPrb)
 
         plt.show()
     return value
 
 
-def plot_attacker_utils_orig(actions, ax, data, mesh, util, x):
+def plot_attacker_utils_orig(actions, att_mesh, ax, data, mesh, util, x):
+    print('Plotting attacker orig utility')
     if len(data.features) == 1:
         ax.set_title('Attacker utilities undet')
         ax.set_xlabel(data.features[0])
@@ -67,36 +80,87 @@ def plot_attacker_utils_orig(actions, ax, data, mesh, util, x):
         values = np.array([util(mesh[a]) for a in actions]).reshape(x[0].shape)
         vmin = values.min()
         vmax = values.max()
+
+        f1max = max(att_mesh.T[0])
+        f2max = max(att_mesh.T[1])
+        ex = [0, f1max, 0, f2max]
+
         ax.imshow(values, cmap=plt.cm.gist_earth_r,
-            extent=np.ndarray.flatten(data.limits), vmin=vmin, vmax=vmax, interpolation='nearest',
+            extent=ex, vmin=vmin, vmax=vmax, interpolation='nearest',
             origin='lower')
-        ax.set_xlim(data.limits[0])
-        ax.set_ylim(data.limits[1])
+        # ax.set_xlim(data.limits[0])
+        # ax.set_ylim(data.limits[1])
 
 
-def plot_attacker_utils(actions, ax, data, g, mesh, util, x):
+def plot_attacker_utils(actions, att_mesh, ax, data, g, mesh, util, x, att_type, dist):
+    print('Plotting attacker real utility.')
+    if att_type == 'replace':
+        values = [util(mesh[a]) * (1 - p) for a, p in zip(actions, g.thetas)]
+    elif att_type == 'add':
+      # values = [util(mesh[a]) * ( 1 - sum([dist(mesh[a]+mesh[a_]) * p for a_, p in zip(actions, g.thetas)]))  for a in actions]
+        values = [util(mesh[att_a]) * (sum([dist(mesh[a] - att_mesh[att_a])
+                        for a in actions])
+                   - sum([dist(mesh[a] - att_mesh[att_a]) * (g.thetas[a]) for a in actions]))  for att_a in actions]
+    attack_utils = np.array(values).reshape(x[0].shape)
+
+
     if len(data.features) == 1:
         ax.set_title('Attacker utilities')
         ax.set_xlabel(data.features[0])
-        ax.set_ylabel('uitlity')
-        attack_utils = np.array([util(mesh[a]) * (1 - p) for a, p in zip(actions, g.thetas)]).reshape(x[0].shape)
+        ax.set_ylabel('utility')
+        attack_utils = np.array(values).reshape(x[0].shape)
         cax = ax.plot(actions, attack_utils)
 
     if len(data.features) == 2:
         ax.set_title('Attacker utilities')
         ax.set_xlabel(data.features[0])
         ax.set_ylabel(data.features[1])
-        values = np.array([util(mesh[a]) for a in actions]).reshape(x[0].shape)
-        vmin = values.min()
-        vmax = values.max()
-        attack_utils = np.array([util(mesh[a]) * (1 - p) for a, p in zip(actions, g.thetas)]).reshape(x[0].shape)
-        cax = ax.imshow(attack_utils, cmap=plt.cm.gist_earth_r, extent=np.ndarray.flatten(data.limits),
-            vmin=vmin, vmax=vmax, interpolation='nearest', origin='lower')
-        ax.set_xlim(data.limits[0])
-        ax.set_ylim(data.limits[1])
+        # orig = np.array([util(mesh[a]) for a in actions]).reshape(x[0].shape)
+        # vmin = orig.min()
+        # vmax = orig.max()
 
+        f1max = max(att_mesh.T[0])
+        f2max = max(att_mesh.T[1])
+        ex = [0, f1max, 0, f2max]
+        # ax.imshow(attack_utils, cmap=plt.cm.gist_earth_r, extent=np.ndarray.flatten(data.limits), vmin=vmin, vmax=vmax, interpolation='nearest', origin='lower')
+        ax.imshow(attack_utils, cmap=plt.cm.gist_earth_r, extent=ex, interpolation='nearest', origin='lower')
+        # ax.set_xlim(data.limits[0])
+        # ax.set_ylim(data.limits[1])
+
+def plot_attacker_det_prb(actions, att_mesh, ax, data, g, mesh, util, x, att_type, dist):
+    print('Plotting undetection probability.')
+    if att_type == 'replace':
+        values = [(1 - p) for a, p in zip(actions, g.thetas)]
+    elif att_type == 'add':
+        # values = [util(mesh[a]) * ( 1 - sum([dist(mesh[a]+mesh[a_]) * p for a_, p in zip(actions, g.thetas)]))  for a in actions]
+        values = [(sum([dist(mesh[a] - att_mesh[att_a])
+                                            for a in actions])
+                                       - sum([dist(mesh[a] - att_mesh[att_a]) * (g.thetas[a]) for a in actions]))  for att_a in actions]
+    attack_utils = np.array(values).reshape(x[0].shape)
+
+
+    if len(data.features) == 1:
+        ax.set_title('Attacker undet probability')
+        ax.set_xlabel(data.features[0])
+        ax.set_ylabel('utility')
+        attack_utils = np.array(values).reshape(x[0].shape)
+        cax = ax.plot(actions, attack_utils)
+
+    if len(data.features) == 2:
+        ax.set_title('Attacker undet probability')
+        ax.set_xlabel(data.features[0])
+        ax.set_ylabel(data.features[1])
+
+        f1max = max(att_mesh.T[0])
+        f2max = max(att_mesh.T[1])
+        ex = [0, f1max, 0, f2max]
+        # ax.imshow(attack_utils, cmap=plt.cm.gist_earth_r, extent=np.ndarray.flatten(data.limits), vmin=vmin, vmax=vmax, interpolation='nearest', origin='lower')
+        ax.imshow(attack_utils, cmap=plt.cm.gist_earth_r, extent=ex, interpolation='nearest', origin='lower')
+        # ax.set_xlim(data.limits[0])
+        # ax.set_ylim(data.limits[1])
 
 def plot_defender_fp(actions, ax, data, g, mesh, prb, x):
+    print('Plotting defender fpr')
     if len(data.features) == 1:
         ax.set_title('Real false-positives')
         ax.set_xlabel(data.features[0])
@@ -114,6 +178,7 @@ def plot_defender_fp(actions, ax, data, g, mesh, prb, x):
         ax.set_ylim(data.limits[1])
 
 def plot_defender_dist(actions, ax, data, mesh, prb, x):
+    print('Plotting defender dist.')
     if len(data.features) == 1:
         ax.set_title('data distribution false-positives')
         ax.set_xlabel(data.features[0])
@@ -131,6 +196,7 @@ def plot_defender_dist(actions, ax, data, mesh, prb, x):
         ax.set_ylim(data.limits[1])
 
 def plot_defender_strategy(ax, data, decisions):
+    print('Plotting defender strategy')
     if len(data.features) ==1:
         ax.set_title('Defender probabilities')
         ax.set_xlabel(data.features[0])
@@ -194,21 +260,23 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--plot', help='Plot the data in an active window.', action='store_true', required=False)
     parser.add_argument('-a', '--alg', help='Algorithm [Simple]', action='store_true', required=False)
     parser.add_argument('-d', '--data', help='Where to get the data [Generate|File]', action='store', required=False)
+    parser.add_argument('-t', '--att_type', help='Attacker type [replace|add]', action='store', required=False)
     parser.add_argument('--dist', help='Where to get the data [Generate|File]', action='store', required=False)
     args = parser.parse_args()
 
     if args.alg is False:
         args.alg = 'simple'
-        # args.data = 'generate'
-        args.data = 'file'
-        args.datafile = '/home/kori/data/projects/NAB/data/artificialWithAnomaly/art_daily_flatmiddle.csv'
+        args.data = 'generate'
+        # args.data = 'file'
+        # args.datafile = '/home/kori/data/projects/NAB/data/artificialWithAnomaly/art_daily_flatmiddle.csv'
+        args.att_type =  'add'
 
 
 
     if args.data == 'generate':
         data = DatasetFeatures.from_normal_distribution_independent(features=['F1', 'F2'], mean=[0.5, 0.5], var=[0.1, 0.2], size=1000)
         # data = DatasetFeatures.from_normal_distribution_independent(features=['F1'], mean=[0.2], var=[0.1], size=1000)
-        print(data.data)
+        # print(data.data)
     if args.data == 'file':
         df = pd.read_csv(args.datafile)
         df_agg = aggregate(df)
@@ -218,4 +286,5 @@ if __name__ == '__main__':
 
 
     if args.alg == 'simple':
-        solve_simple_game(data, FPrate=0.01, plot=True)
+        solve_simple_game(data, discretize=30, FPrate=0.01, att_type=args.att_type, discount=0, plot=True)
+        # solve_simple_game(data, discretize=5, FPrate=0.01, att_type='replace', discount=0, plot=True)
