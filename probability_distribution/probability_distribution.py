@@ -40,15 +40,15 @@ class ProbabilityDistribution:
             X, Y = np.mgrid[self.data_featured.mins[0]:self.data_featured.maxs[0]:(self.bins)*1j,
                     self.data_featured.mins[1]:self.data_featured.maxs[1]:(self.bins)*1j]
             # positions = np.vstack([X.ravel(), Y.ravel()])
-            print((self.data_featured.mins[0], self.data_featured.maxs[0]))
-            print((self.data_featured.mins[1], self.data_featured.maxs[1]))
+            # print((self.data_featured.mins[0], self.data_featured.maxs[0]))
+            # print((self.data_featured.mins[1], self.data_featured.maxs[1]))
 
             positions = np.stack([X.ravel(), Y.ravel()], axis=-1)
-            print(positions)
+            # print(positions)
             Z = np.array(list(map(self.getPrb, positions))).reshape(X.shape)
             # print(Z.sum())
             Z = Z/Z.sum()
-            print(Z)
+            # print(Z)
             # print(('Z.sum()=', Z.sum()))
 
             # print(np.ndarray.flatten(self.data_featured.limits.T))

@@ -13,7 +13,7 @@ from game.game import Game, UtilityFunctions
 
 def prepare_defender(prb, discretize):
     spaces = [np.linspace(prb.data_featured.mins[d], prb.data_featured.maxs[d], discretize) for d in range(prb.prb.d)]
-    print(spaces)
+    # print(spaces)
     x = np.meshgrid(*spaces)
     mesh = np.stack([xsub.ravel() for xsub in x], axis=-1)
     actions = range(int(discretize ** prb.prb.d))
@@ -23,7 +23,7 @@ def prepare_attacker(prb, discretize):
     step = (prb.data_featured.maxs - prb.data_featured.mins) / (discretize -1)
     spaces = [np.array(range(discretize)) * step[d] - step[d]*discretize/2 for d in range(prb.prb.d)]
     # spaces = [np.array(range(discretize)) * step[d] for d in range(prb.prb.d)]
-    print(spaces)
+    # print(spaces)
     # spaces = [np.linspace(0, 1, discretize) for d in range(prb.prb.d)]
     x = np.meshgrid(*spaces)
     mesh = np.stack([xsub.ravel() for xsub in x], axis=-1)
@@ -235,18 +235,24 @@ def plot_FP_vs_utility():
 
 
 
-def aggregate(df):
+def aggregate(df, fce):
     n = 50
     list_df = [df[i:i+n] for i in range(0, df.shape[0]-n-1)]
     # print(list_df[0])
 
-    means = []
-    stds = []
+    stats = dict()
+    for f in fce:
+        stats.update({f:list()})
+    # means = []
+    # stds = []
 
     for line in list_df:
-        means.append(line.agg('mean')['value'])
-        stds.append(line.agg('std')['value'])
-    return pd.DataFrame({'mean': means, 'std':stds})
+        for f in fce:
+            stats.get(f).append(line.agg(f)['value'])
+        # means.append(line.agg('mean')['value'])
+        # stds.append(line.agg('std')['value'])
+    return pd.DataFrame({name:stats.get(name) for name in fce})
+    # return pd.DataFrame({'mean': means, 'std':stds})
 
 ####################
 # Main
@@ -268,9 +274,9 @@ if __name__ == '__main__':
 
     if args.alg is False:
         args.alg = 'simple'
-        args.data = 'generate'
-        # args.data = 'file'
-        # args.datafile = '/home/kori/data/projects/NAB/data/artificialWithAnomaly/art_daily_flatmiddle.csv'
+        # args.data = 'generate'
+        args.data = 'file'
+        args.datafile = '/home/kori/data/projects/NAB/data/artificialWithAnomaly/art_daily_flatmiddle.csv'
         args.att_type =  'add'
 
 
@@ -281,12 +287,13 @@ if __name__ == '__main__':
         # print(data.data)
     if args.data == 'file':
         df = pd.read_csv(args.datafile)
-        df_agg = aggregate(df)
+        df_agg = aggregate(df, ['mean','std'])
         # print(df_agg)
         # print(df_agg.columns)
         data = DatasetFeatures(df_agg, df_agg.columns)
 
 
     if args.alg == 'simple':
-        solve_simple_game(data, discretize=20, FPrate=0.01, att_type=args.att_type, discount=0, plot=True)
+        # solve_simple_game(data, discretize=10, FPrate=0.01, att_type=args.att_type, discount=0, plot=True)
+        solve_simple_game(data, discretize=4, FPrate=0.01, att_type=args.att_type, discount=0, plot=False)
         # solve_simple_game(data, discretize=5, FPrate=0.01, att_type='replace', discount=0, plot=True)
