@@ -277,6 +277,7 @@ if __name__ == '__main__':
         # args.data = 'generate'
         args.data = 'file'
         args.datafile = '/home/kori/data/projects/NAB/data/artificialWithAnomaly/art_daily_flatmiddle.csv'
+        args.att_type =  'replace'
         args.att_type =  'add'
 
 
@@ -287,10 +288,12 @@ if __name__ == '__main__':
         # print(data.data)
     if args.data == 'file':
         df = pd.read_csv(args.datafile)
-        df_agg = aggregate(df, ['mean','std'])
+        # df_agg = aggregate(df, ['mean','std'])
+        df_agg = aggregate(df, ['mean','std','sum'])
         # print(df_agg)
         # print(df_agg.columns)
         data = DatasetFeatures(df_agg, df_agg.columns)
+        data.plot()
 
 
     if args.alg == 'simple':

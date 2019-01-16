@@ -1,4 +1,5 @@
 import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
 
 
@@ -26,6 +27,13 @@ class DatasetFeatures:
         # print(self.limits)
         # print(self.feature_size)
         # print('done')
+
+    def plot(self):
+        fig, ax = plt.subplots(len(self.features))
+        for i in range(len(self.features)):
+            ax[i].hist(self.data[self.features[i]], bins=20)
+            ax[i].set_xlabel(self.features[i])
+        plt.show()
 
     @classmethod
     def from_file(cls, file_name, force=False):
