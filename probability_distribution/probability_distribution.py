@@ -14,10 +14,8 @@ class ProbabilityDistribution:
     def getPrb(self, x):
         x_tup = tuple([round(elem, 5) for elem in x])
         if x_tup in self.prb_cache.keys():
-            # print('From cache.')
             return self.prb_cache[x_tup]
         else:
-            # print('From computation.')
             p0 = x
             p1 = [v + self.data_featured.feature_size[i]/(self.bins-1) for i,v in enumerate(x)]
             val = self.prb.integrate_box(p0, np.array(p1), maxpts=50)
@@ -28,10 +26,11 @@ class ProbabilityDistribution:
 
     def plot(self, ax):
         if self.prb.d == 1:
-            xs = np.linspace(0,1,self.bins)
+            xs = np.c_[np.linspace(self.data_featured.mins[0],self.data_featured.maxs[0],self.bins)]
+            print(xs)
             self.prb.covariance_factor = lambda : .25
             self.prb._compute_covariance()
-            ax.plot(xs, self.prb(xs))
+            ax.plot(xs, np.array(list(map(self.getPrb, xs))))
             ax.set_title('Probability distribution')
             ax.set_xlabel(self.data_featured.features[0])
             ax.set_ylabel('probability')
@@ -40,8 +39,6 @@ class ProbabilityDistribution:
             X, Y = np.mgrid[self.data_featured.mins[0]:self.data_featured.maxs[0]:(self.bins)*1j,
                     self.data_featured.mins[1]:self.data_featured.maxs[1]:(self.bins)*1j]
             # positions = np.vstack([X.ravel(), Y.ravel()])
-            # print((self.data_featured.mins[0], self.data_featured.maxs[0]))
-            # print((self.data_featured.mins[1], self.data_featured.maxs[1]))
 
             positions = np.stack([X.ravel(), Y.ravel()], axis=-1)
             # print(positions)
@@ -52,7 +49,7 @@ class ProbabilityDistribution:
             # print(('Z.sum()=', Z.sum()))
 
             # print(np.ndarray.flatten(self.data_featured.limits.T))
-            ax.imshow(np.rot90(Z), cmap=plt.get_cmap('Greys'), extent=np.ndarray.flatten(self.data_featured.limits))
+            ax.imshow(np.rot90(Z), cmap=plt.get_cmap('Greys'), extent=np.ndarray.flatten(self.data_featured.limits), aspect='auto')
             ax.plot(self.data_featured.data[self.data_featured.features[0]], self.data_featured.data[self.data_featured.features[1]], 'k.', markersize=2)
 
             ax.set_xlim(self.data_featured.limits[0])
