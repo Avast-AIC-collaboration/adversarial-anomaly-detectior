@@ -19,7 +19,7 @@ class ProbabilityDistribution:
         else:
             # print('From computation.')
             p0 = x
-            p1 = [v + self.data_featured.feature_size[i]/self.bins for i,v in enumerate(x)]
+            p1 = [v + self.data_featured.feature_size[i]/(self.bins-1) for i,v in enumerate(x)]
             val = self.prb.integrate_box(p0, np.array(p1), maxpts=50)
             self.prb_cache.update({x_tup:val})
             # print((p0, p1, val))
