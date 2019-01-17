@@ -3,13 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from data_featured.dataset_featured import DatasetFeatures
 
-
 class ProbabilityDistribution:
     def __init__(self, data_featured:DatasetFeatures, bins=10):
         self.data_featured = data_featured
         self.prb = gaussian_kde(data_featured.data.T)
         self.bins = bins
         self.prb_cache = dict()
+        self.step = np.array(self.data_featured.feature_size/(self.bins-1))
 
     def getPrb(self, x):
         x_tup = tuple([round(elem, 5) for elem in x])
@@ -17,8 +17,8 @@ class ProbabilityDistribution:
             return self.prb_cache[x_tup]
         else:
             p0 = x
-            p1 = [v + self.data_featured.feature_size[i]/(self.bins-1) for i,v in enumerate(x)]
-            val = self.prb.integrate_box(p0, np.array(p1), maxpts=50)
+            p1 = x + self.step
+            val = self.prb.integrate_box(p0, p1)
             self.prb_cache.update({x_tup:val})
             # print((p0, p1, val))
             return val
@@ -27,7 +27,6 @@ class ProbabilityDistribution:
     def plot(self, ax):
         if self.prb.d == 1:
             xs = np.c_[np.linspace(self.data_featured.mins[0],self.data_featured.maxs[0],self.bins)]
-            print(xs)
             self.prb.covariance_factor = lambda : .25
             self.prb._compute_covariance()
             ax.plot(xs, np.array(list(map(self.getPrb, xs))))
