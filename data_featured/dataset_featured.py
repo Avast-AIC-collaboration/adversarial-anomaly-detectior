@@ -9,11 +9,13 @@ class DatasetFeatures:
         self.data = data
         self.features = features
 
+
         mmin = data.min()
         mmax = data.max()
         feature_size = mmax - mmin
 
         margin = 0.4
+        # margin = 1.4
         # margin = 0.0
         self.mins = data.min() - feature_size*margin
         self.maxs = data.max() + feature_size*margin
@@ -50,3 +52,23 @@ class DatasetFeatures:
         res = cls(data, features=features)
         return res
 
+    @classmethod
+    def from_normal_distribution_dependent(cls, features, mean, covar, size, force=False):
+        data = pd.DataFrame()
+        np.random.seed(seed=42)
+
+        X = np.random.multivariate_normal(mean, covar, size)
+        # print(X)
+        res = cls(pd.DataFrame(X, columns=features), features=features)
+        return res
+
+    @classmethod
+    def from_normal_distribution_dependent_first(cls, features, mean, covar, size):
+        data = pd.DataFrame()
+        np.random.seed(seed=42)
+
+        X = np.random.multivariate_normal(mean, covar, size)
+        X = X[:,0]
+        # print(X)
+        res = cls(pd.DataFrame(X, columns=features), features=features)
+        return res

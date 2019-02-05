@@ -1,4 +1,5 @@
 from gurobipy import *
+from nn.neuralNetwork import NN
 from functools import reduce
 
 class Game(object):
@@ -13,7 +14,6 @@ class Game(object):
         self.att_type = att_type
 
     def solve(self):
-
         try:
             # Create variables
             m = Model("game")
@@ -29,7 +29,7 @@ class Game(object):
 
             if self.att_type == 'replace':
                 m.addConstrs(
-                    ((1-theta[a]) * self.utils(self.mesh[a])/(1-self.discount) <= u for a in self.actions), "BRs")
+                    ((1-theta[a]) * self.utils(self.att_mesh[a])/(1-self.discount) <= u for a in self.actions), "BRs")
             elif self.att_type == 'add':
                 m.addConstrs(
                     ((sum([self.dist(self.mesh[a] - self.att_mesh[att_a])

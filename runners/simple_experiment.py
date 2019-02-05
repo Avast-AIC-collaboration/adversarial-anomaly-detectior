@@ -8,6 +8,8 @@ from math import log
 from data_featured.dataset_featured import DatasetFeatures
 from probability_distribution.probability_distribution import ProbabilityDistribution
 from game.game import Game, UtilityFunctions
+from nn.neuralNetwork import NN
+
 
 # DEFINE CONSTANTS
 
@@ -39,8 +41,8 @@ def solve_simple_game(data:DatasetFeatures, discretize=10, FPrate=0.1, discount=
 
     # prepare inputs for the game
     # util = UtilityFunctions.utilityUniform
-    util = UtilityFunctions.utility1
-    # util = UtilityFunctions.utilityMul
+    # util = UtilityFunctions.utility1
+    util = UtilityFunctions.utilityMul
     # util = UtilityFunctions.utilitySum
 
     actions, mesh, x = prepare_defender(prb, discretize)
@@ -66,6 +68,19 @@ def solve_simple_game(data:DatasetFeatures, discretize=10, FPrate=0.1, discount=
         plt.show()
     return value
 
+def solve_simple_game_with_nn(data:DatasetFeatures, FPrate=0.1, discount=0.9, att_type='replace', plot=True):
+
+    # prepare inputs for the game
+    # util = UtilityFunctions.utilityUniform
+    # util = UtilityFunctions.utility1
+    util = UtilityFunctions.utilityMul
+    # util = UtilityFunctions.utilitySum
+
+
+    print('Solving game ....')
+    neural = NN(data, util, FPrate, discount, att_type)
+    neural.solve()
+    return 0
 
 def plot_attacker_utils_orig(actions, att_mesh, ax, data, mesh, util, x):
     print('Plotting attacker orig utility')
@@ -101,9 +116,16 @@ def plot_attacker_utils_orig(actions, att_mesh, ax, data, mesh, util, x):
 def plot_attacker_utils(actions, att_mesh, ax, data, g, mesh, util, x, att_type, dist):
     print('Plotting attacker real utility.')
     if att_type == 'replace':
-        values = [util(att_mesh[a]) * (1 - p) for a, p in zip(actions, g.thetas)]
+        values_orig = np.array([util(att_mesh[a]) for a in actions]).reshape(x[0].shape)
+        vmin = values_orig.min()
+        vmax = values_orig.max()
+        values = [util(att_mesh[att_a]) * (1-g.thetas[att_a])  for att_a in actions]
+        # values = [util(att_mesh[a]) * (1 - p) for a, p in zip(actions, g.thetas)]
     elif att_type == 'add':
       # values = [util(mesh[a]) * ( 1 - sum([dist(mesh[a]+mesh[a_]) * p for a_, p in zip(actions, g.thetas)]))  for a in actions]
+        values_orig = np.array([util(att_mesh[a]) for a in actions]).reshape(x[0].shape)
+        vmin = values_orig.min()
+        vmax = values_orig.max()
         values = [util(att_mesh[att_a]) * (sum([dist(mesh[a] - att_mesh[att_a])
                         for a in actions])
                    - sum([dist(mesh[a] - att_mesh[att_a]) * (g.thetas[a]) for a in actions]))  for att_a in actions]
@@ -125,7 +147,7 @@ def plot_attacker_utils(actions, att_mesh, ax, data, g, mesh, util, x, att_type,
         limits1 = [att_mesh.T[0].min(), att_mesh.T[0].max()]
         limits2 = [att_mesh.T[1].min(), att_mesh.T[1].max()]
         ex = limits1 + limits2
-        # ax.imshow(attack_utils, cmap=plt.cm.gist_earth_r, extent=np.ndarray.flatten(data.limits), vmin=vmin, vmax=vmax, interpolation='nearest', origin='lower')
+        # ax.imshow(attack_utils, vmin=vmin, vmax=vmax, cmap=plt.cm.gist_earth_r, extent=ex, interpolation='nearest', origin='lower', aspect='auto')
         ax.imshow(attack_utils, cmap=plt.cm.gist_earth_r, extent=ex, interpolation='nearest', origin='lower', aspect='auto')
         ax.set_xlim(limits1)
         ax.set_ylim(limits2)
@@ -133,7 +155,8 @@ def plot_attacker_utils(actions, att_mesh, ax, data, g, mesh, util, x, att_type,
 def plot_attacker_det_prb(actions, att_mesh, ax, data, g, mesh, util, x, att_type, dist):
     print('Plotting undetection probability.')
     if att_type == 'replace':
-        values = [(1 - p) for a, p in zip(actions, g.thetas)]
+        values = [(1-g.thetas[att_a])  for att_a in actions]
+        # values = [(1 - p) for a, p in zip(actions, g.thetas)]
     elif att_type == 'add':
         # values = [util(mesh[a]) * ( 1 - sum([dist(mesh[a]+mesh[a_]) * p for a_, p in zip(actions, g.thetas)]))  for a in actions]
         values = [(sum([dist(mesh[a] - att_mesh[att_a])
@@ -158,7 +181,7 @@ def plot_attacker_det_prb(actions, att_mesh, ax, data, g, mesh, util, x, att_typ
         limits2 = [att_mesh.T[1].min(), att_mesh.T[1].max()]
         ex = limits1 + limits2
         # ax.imshow(attack_utils, cmap=plt.cm.gist_earth_r, extent=np.ndarray.flatten(data.limits), vmin=vmin, vmax=vmax, interpolation='nearest', origin='lower')
-        ax.imshow(attack_utils, cmap=plt.cm.gist_earth_r, extent=ex, interpolation='nearest', origin='lower', aspect='auto')
+        ax.imshow(attack_utils, cmap=plt.get_cmap('Greys'), extent=ex, interpolation='nearest', origin='lower', aspect='auto')
         ax.set_xlim(limits1)
         ax.set_ylim(limits2)
 
@@ -272,18 +295,24 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.alg is False:
-        args.alg = 'simple'
-        # args.data = 'generate'
-        args.data = 'file_raw'
-        args.datafile = '/home/kori/data/projects/NAB/data/artificialWithAnomaly/art_daily_flatmiddle.csv'
+        args.alg = 'nn'
+        # args.alg = 'linProg'
+        args.data = 'generate'
+        # args.data = 'file_raw'
+        # args.data = 'file_featured'
+        # args.datafile = '/home/kori/data/projects/NAB/data/artificialWithAnomaly/art_daily_flatmiddle.csv'
+        # args.datafile = '/home/kori/data/projects/avast-playground/adversarial-anomaly-detectior/data/data_5000_features_18_01_2019.pkl'
         args.att_type =  'replace'
-        args.att_type =  'add'
+        # args.att_type =  'add'
 
 
 
     if args.data == 'generate':
-        data = DatasetFeatures.from_normal_distribution_independent(features=['F1', 'F2'], mean=[0.5, 0.5], var=[0.1, 0.2], size=1000)
-        # data = DatasetFeatures.from_normal_distribution_independent(features=['F1'], mean=[0.2], var=[0.1], size=1000)
+        # data = DatasetFeatures.from_normal_distribution_independent(features=['F1', 'F2'], mean=[0.5, 0.5], var=[0.1, 0.2], size=1000)
+        # data = DatasetFeatures.from_normal_distribution_independent(features=['F1', 'F2'], mean=[0.5, 0.5], var=[[0.1, 0.2],[.1, .1 ]], size=1000)
+        # data = DatasetFeatures.from_normal_distribution_dependent(features=['Mean', 'Std'], mean=[5, 5.0], covar=[[1.5, 2.0],[2, 2. ]], size=1000)
+        # data = DatasetFeatures.from_normal_distribution_dependent_first(features=['F1'], mean=[0.5, 0.5], covar=[[1.0, 0.0],[20, 1. ]], size=1000)
+        data = DatasetFeatures.from_normal_distribution_independent(features=['F1'], mean=[0.2], var=[0.1], size=1000)
         # print(data.data)
     elif args.data == 'file_raw':
         df = pd.read_csv(args.datafile)
@@ -294,11 +323,19 @@ if __name__ == '__main__':
         # df_agg = aggregate(df, ['mean','std','sum'])
         data = DatasetFeatures(df_agg, df_agg.columns)
     elif args.data == 'file_featured':
-        df = pd.read_csv(args.datafile)
-        data = DatasetFeatures(df, df.columns)
+        df = pd.read_pickle(args.datafile)
+        print(df.columns)
+        # df = pd.read_csv(args.datafile)
+        df['num_letters_norm'] = (df['num_letters'] - df['num_letters'].mean())/df['num_letters'].std()
+        df['length_norm'] = (df['length'] - df['length'].mean())/df['length'].std()
+        data = DatasetFeatures(pd.DataFrame(df[['entropy','length_norm']]), ['entropy', 'length_norm'])
+        # data = DatasetFeatures(pd.DataFrame(df[['num_letters']), ['num_letters'])
 
 
-    if args.alg == 'simple':
-        solve_simple_game(data, discretize=50, FPrate=0.01, att_type=args.att_type, discount=0, plot=True)
+    if args.alg == 'linProg':
+        solve_simple_game(data, discretize=25, FPrate=0.10, att_type=args.att_type, discount=0, plot=True)
+    elif args.alg == 'nn':
+        solve_simple_game_with_nn(data, FPrate=0.1, att_type=args.att_type, discount=0, plot=True)
+
         # solve_simple_game(data, discretize=4, FPrate=0.01, att_type=args.att_type, discount=0, plot=False)
         # solve_simple_game(data, discretize=5, FPrate=0.01, att_type='replace', discount=0, plot=True)
