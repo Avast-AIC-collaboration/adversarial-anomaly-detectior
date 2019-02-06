@@ -294,6 +294,8 @@ if __name__ == '__main__':
     parser.add_argument('--dist', help='Where to get the data [Generate|File]', action='store', required=False)
     args = parser.parse_args()
 
+    np.random.seed(42)
+
     if args.alg is False:
         args.alg = 'nn'
         # args.alg = 'linProg'
@@ -308,11 +310,11 @@ if __name__ == '__main__':
 
 
     if args.data == 'generate':
-        # data = DatasetFeatures.from_normal_distribution_independent(features=['F1', 'F2'], mean=[0.5, 0.5], var=[0.1, 0.2], size=1000)
+        # data = DatasetFeatures.from_normal_distribution_independent(features=['F1'], mean=[0.2], var=[0.1], size=1000)
         # data = DatasetFeatures.from_normal_distribution_independent(features=['F1', 'F2'], mean=[0.5, 0.5], var=[[0.1, 0.2],[.1, .1 ]], size=1000)
-        # data = DatasetFeatures.from_normal_distribution_dependent(features=['Mean', 'Std'], mean=[5, 5.0], covar=[[1.5, 2.0],[2, 2. ]], size=1000)
+        # data = DatasetFeatures.from_normal_distribution_independent(features=['F1', 'F2'], mean=[0.5, 0.5], var=[0.1, 0.2], size=1000)
+        data = DatasetFeatures.from_normal_distribution_dependent(features=['Mean', 'Std'], mean=[5, 5.0], covar=[[1.5, 2.0],[2, 2. ]], size=1000)
         # data = DatasetFeatures.from_normal_distribution_dependent_first(features=['F1'], mean=[0.5, 0.5], covar=[[1.0, 0.0],[20, 1. ]], size=1000)
-        data = DatasetFeatures.from_normal_distribution_independent(features=['F1'], mean=[0.2], var=[0.1], size=1000)
         # print(data.data)
     elif args.data == 'file_raw':
         df = pd.read_csv(args.datafile)

@@ -9,7 +9,6 @@ class DatasetFeatures:
         self.data = data
         self.features = features
 
-
         mmin = data.min()
         mmax = data.max()
         feature_size = mmax - mmin
