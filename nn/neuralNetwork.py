@@ -17,7 +17,7 @@ class NN(object):
         self.LR_D = 0.0001  # learning rate for discriminator
         self.latent = 4  # think of this as number of ideas for generating an art work (Generator)
         self.dim = len(self.data.features)  # it could be total point G can draw in the canvas
-        self.num_of_gens = 1
+        self.num_of_gens = 2
         self.seed = 42
 
 
@@ -46,7 +46,7 @@ class NN(object):
             nn.Linear(self.latent, 16),            # random ideas (could from normal distribution)
             nn.ReLU(),
             nn.Linear(16, self.dim),
-            nn.ReLU()
+            # nn.ReLU()
         ) for _ in range(self.num_of_gens)]
 
         D = nn.Sequential(                      # Discriminator
@@ -78,14 +78,15 @@ class NN(object):
             elif self.att_type=='add':
                 prob_of_insp_fake = [D(gen_sample + real_samples) for gen_sample in gen_samples]
 
-            utils = [gen_sample[:,0] for gen_sample in gen_samples]
+            # utils = [gen_sample[:,1] for gen_sample in gen_samples]
+            utils = [gen_sample[:,0] + gen_sample[:,1] for gen_sample in gen_samples]
 
             # D_loss = - (-torch.mul(torch.clamp(torch.mean(prob_of_insp_real) - 0.1, min=0), 100) - torch.mean( torch.mul(1 - prob_of_insp_fake, utils)))
             # D_loss = - (-torch.mul(torch.clamp(torch.mean(prob_of_insp_real) - 0.1, min=0), 100) - torch.mean( torch.mul(1 - prob_of_insp_fake, utils))-torch.mean( torch.mul(1 - prob_of_insp_fake2, utils2)))
             # D_loss = - (-torch.mul(torch.clamp(torch.mean(prob_of_insp_real) - 0.1, min=0), 100)
             #             - [torch.mean(torch.mul(1-prob_of_insp_fake_single, util)) for prob_of_insp_fake_single, util in zip(prob_of_insp_fake, utils)].sum())
 
-            D_loss = - (- torch.mul(torch.clamp(torch.mean(prob_of_insp_real) - 0.1, min=0), 10)
+            D_loss = - (- torch.mul(torch.clamp(torch.mean(prob_of_insp_real) - 0.1, min=0), 100)
                         - torch.mean(torch.mul(1-torch.cat(prob_of_insp_fake,0), torch.cat(utils, 0))))
 
             G_loss = [-torch.mean(torch.mul(1-prob_of_insp_fake_single, util_single)) for prob_of_insp_fake_single, util_single in zip(prob_of_insp_fake, utils)]
@@ -119,7 +120,7 @@ class NN(object):
         # plt.ioff()
 
     def plot(self, D, ax, gen_samples, real_samples, G_loss):
-        resolution = 100
+        resolution = 50
         if len(self.data.feature_size) == 1:
 
             ax[0, 0].cla()
@@ -188,14 +189,12 @@ class NN(object):
             for gen in gen_samples_np:
                 ax[0, 1].plot(gen[0], gen[1], 'r.')
             ax[0, 1].plot(real_samples_np[0], real_samples_np[1], 'b.')
-            ax[0, 1].set_xlim(left=0)
-            ax[0, 1].set_ylim(bottom=0)
+            # ax[0, 1].set_xlim(left=0)
+            # ax[0, 1].set_ylim(bottom=0)
 
             ax[1, 0].cla()
-            ax[1, 0].imshow(((1 - def_mesh_ts) * mesh[:, 0].reshape(x[0].shape)), cmap=plt.cm.gist_earth_r, extent=ex,
+            ax[1, 0].imshow(((1 - def_mesh_ts) * (mesh[:, 0]+mesh[:,1]).reshape(x[0].shape)), cmap=plt.cm.gist_earth_r, extent=ex,
                 interpolation='nearest', origin='lower', aspect='auto')
-            ax[0, 1].set_xlim(left=0)
-            ax[0, 1].set_ylim(bottom=0)
 
     def reset_model(self, M, c):
         def init_weights(m):

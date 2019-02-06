@@ -299,20 +299,19 @@ if __name__ == '__main__':
     if args.alg is False:
         args.alg = 'nn'
         # args.alg = 'linProg'
-        args.data = 'generate'
+        # args.data = 'generate'
         # args.data = 'file_raw'
-        # args.data = 'file_featured'
+        args.data = 'file_featured'
         # args.datafile = '/home/kori/data/projects/NAB/data/artificialWithAnomaly/art_daily_flatmiddle.csv'
-        # args.datafile = '/home/kori/data/projects/avast-playground/adversarial-anomaly-detectior/data/data_5000_features_18_01_2019.pkl'
+        args.datafile = '/home/kori/data/projects/avast-playground/adversarial-anomaly-detectior/data/data_5000_features_18_01_2019.pkl'
         args.att_type =  'replace'
         # args.att_type =  'add'
 
 
-
     if args.data == 'generate':
-        data = DatasetFeatures.from_normal_distribution_independent(features=['F1'], mean=[5], var=[1.0], size=1000)
+        # data = DatasetFeatures.from_normal_distribution_independent(features=['F1'], mean=[5], var=[1.0], size=1000)
+        data = DatasetFeatures.from_normal_distribution_dependent(features=['Mean', 'Std'], mean=[5, 5.0], covar=[[1.5, 2.0],[2, 2. ]], size=1000)
         # data = DatasetFeatures.from_normal_distribution_independent(features=['F1', 'F2'], mean=[0.5, 0.5], var=[[0.1, 0.2],[.1, .1 ]], size=1000)
-        # data = DatasetFeatures.from_normal_distribution_dependent(features=['Mean', 'Std'], mean=[5, 5.0], covar=[[1.5, 2.0],[2, 2. ]], size=1000)
         # data = DatasetFeatures.from_normal_distribution_independent(features=['F1', 'F2'], mean=[0.5, 0.5], var=[0.1, 0.2], size=1000)
         # data = DatasetFeatures.from_normal_distribution_dependent_first(features=['F1'], mean=[0.5, 0.5], covar=[[1.0, 0.0],[20, 1. ]], size=1000)
         # print(data.data)
