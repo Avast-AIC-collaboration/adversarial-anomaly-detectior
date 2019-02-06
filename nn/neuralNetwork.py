@@ -15,9 +15,9 @@ class NN(object):
         self.BATCH_SIZE =  64
         self.LR_G = 0.0001  # learning rate for generator
         self.LR_D = 0.0001  # learning rate for discriminator
-        self.latent = 10  # think of this as number of ideas for generating an art work (Generator)
+        self.latent = 4  # think of this as number of ideas for generating an art work (Generator)
         self.dim = len(self.data.features)  # it could be total point G can draw in the canvas
-        self.num_of_gens = 8
+        self.num_of_gens = 1
         self.seed = 42
 
 
@@ -29,6 +29,7 @@ class NN(object):
         return torch.from_numpy(samples).float()
 
     def solve(self):
+        print(self.att_type)
         torch.manual_seed(self.seed)
         plt.ion() # something with continuous presentation of the plots
 
@@ -49,9 +50,9 @@ class NN(object):
         ) for _ in range(self.num_of_gens)]
 
         D = nn.Sequential(                      # Discriminator
-            nn.Linear(self.dim, 256),     # receive art work either from the famous artist or a newbie like G
+            nn.Linear(self.dim, 2*128),     # receive art work either from the famous artist or a newbie like G
             nn.ReLU(),
-            nn.Linear(256, 128),
+            nn.Linear(2*128, 128),
             nn.ReLU(),
             nn.Linear(128, 1),
             nn.Sigmoid(),                       # tell the probability that the art work is made by artist
@@ -72,7 +73,10 @@ class NN(object):
             gen_samples = [G(latent_samples) for G in Gs]
 
             prob_of_insp_real = D(real_samples)  # D try to reduce this prob
-            prob_of_insp_fake = [D(gen_sample) for gen_sample in gen_samples]
+            if self.att_type=='replace':
+                prob_of_insp_fake = [D(gen_sample) for gen_sample in gen_samples]
+            elif self.att_type=='add':
+                prob_of_insp_fake = [D(gen_sample + real_samples) for gen_sample in gen_samples]
 
             utils = [gen_sample[:,0] for gen_sample in gen_samples]
 
@@ -81,10 +85,11 @@ class NN(object):
             # D_loss = - (-torch.mul(torch.clamp(torch.mean(prob_of_insp_real) - 0.1, min=0), 100)
             #             - [torch.mean(torch.mul(1-prob_of_insp_fake_single, util)) for prob_of_insp_fake_single, util in zip(prob_of_insp_fake, utils)].sum())
 
-            D_loss = - (-torch.mul(torch.clamp(torch.mean(prob_of_insp_real) - 0.1, min=0), 100)
+            D_loss = - (- torch.mul(torch.clamp(torch.mean(prob_of_insp_real) - 0.1, min=0), 10)
                         - torch.mean(torch.mul(1-torch.cat(prob_of_insp_fake,0), torch.cat(utils, 0))))
 
             G_loss = [-torch.mean(torch.mul(1-prob_of_insp_fake_single, util_single)) for prob_of_insp_fake_single, util_single in zip(prob_of_insp_fake, utils)]
+
 
             opt_D.zero_grad()
             D_loss.backward(retain_graph=True)  # reusing computational graph
@@ -104,7 +109,7 @@ class NN(object):
                     torch.mean(torch.mul(1 - torch.cat(prob_of_insp_fake,0), torch.cat(utils,0)))
                 ))
 
-                self.plot(D, ax, gen_samples, real_samples)
+                self.plot(D, ax, gen_samples, real_samples, G_loss)
 
                 plt.tight_layout()
                 plt.show()
@@ -113,7 +118,8 @@ class NN(object):
 
         # plt.ioff()
 
-    def plot(self, D, ax, gen_samples, real_samples):
+    def plot(self, D, ax, gen_samples, real_samples, G_loss):
+        resolution = 100
         if len(self.data.feature_size) == 1:
 
             ax[0, 0].cla()
@@ -122,21 +128,27 @@ class NN(object):
             ax[0, 0].set_ylim([0, 1])
 
             ax[1, 2].cla()
-            ax[1, 2].hist(gen_samples.data.numpy(), density=True)
-            ax[1, 2].set_xlim(self.data.limits[0])
+            for gen in gen_samples:
+                ax[1, 2].hist(gen.data.numpy(), density=True)
+            # ax[1, 2].set_xlim(left=0self.data.limits[0])
             ax[1, 2].set_ylim([0, 1])
 
             D.eval()
-            t = torch.from_numpy(np.linspace(self.data.mins[0], self.data.maxs[0], 101)[:, np.newaxis]).float()
+            gen_samples_np = gen_samples[0].data.numpy().T
+            t = torch.from_numpy(np.linspace(min(self.data.mins[0], gen_samples_np.min()), max(self.data.maxs[0], gen_samples_np.max()), resolution+1)[:, np.newaxis]).float()
             ax[0, 1].cla()
-            ax[0, 1].plot(t.numpy().T[0], D(t).data.numpy().T[0], 'g-')
-            ax[0, 1].set_xlim(self.data.limits[0])
+            ax[0, 1].plot(t.numpy().T[0], D(t).data.numpy().T[0], 'g-',label='def stg')
+            ax[0, 1].hist(real_samples.data.numpy(), density=True, color='blue')
+            ax[0, 1].hist(gen.data.numpy(), density=True, color='red')
+            ax[0, 1].plot(t.numpy().T[0], (1 - D(t).data.numpy().T[0]) * t.numpy().T[0], 'r-', label='att exp util')
+            ax[0, 1].plot(t.numpy().T[0], list(map(lambda x: 1+G_loss[0]/x, t.numpy().T[0])), 'b-', label='def opt stg')
+            ax[0, 1].set_xlim(left=0)
             ax[0, 1].set_ylim([0, 1])
+            ax[0, 1].legend(loc='upper right')
 
             ax[1, 0].cla()
             ax[1, 0].plot(t.numpy().T[0], (1 - D(t).data.numpy().T[0]) * t.numpy().T[0], 'r-')
-            ax[1, 0].set_xlim(self.data.limits[0])
-            ax[1, 0].set_ylim([0, 1])
+            ax[1, 0].set_xlim(left=0)
 
         elif len(self.data.feature_size) == 2:
             ax[0, 0].cla()
@@ -158,11 +170,10 @@ class NN(object):
             # ax[1, 2].set_ylim(self.data.limits[1])
 
             D.eval()
-            # t = torch.from_numpy(np.linspace(self.data.mins[0], self.data.maxs[0], 101)[:, np.newaxis]).float()
 
             spaces = [np.linspace(
                 min(self.data.mins[d], min(list(map(lambda x: x[d].min(), gen_samples_np)))),
-                max(self.data.maxs[d], max(list(map(lambda x: x[d].max(), gen_samples_np)))), 101) for d in
+                max(self.data.maxs[d], max(list(map(lambda x: x[d].max(), gen_samples_np)))), resolution+1) for d in
                       range(len(self.data.feature_size))]
             x = np.meshgrid(*spaces)
             mesh = np.stack([xsub.ravel() for xsub in x], axis=-1)
