@@ -134,7 +134,7 @@ class NN(object):
         plt.show()
 
     def plot(self, D, ax, gen_samples, real_samples, G_loss):
-        resolution = 20
+        resolution = 50
         if len(self.data.feature_size) == 1:
 
             ax[0, 0].cla()

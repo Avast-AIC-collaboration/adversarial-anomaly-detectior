@@ -13,8 +13,8 @@ class NN(object):
         self.att_type = att_type
 
         self.BATCH_SIZE = 32
-        self.LR_G = 0.0001  # learning rate for generator
-        self.LR_D = 0.0001  # learning rate for discriminator
+        self.LR_G = 0.0002  # learning rate for generator
+        self.LR_D = 0.0002  # learning rate for discriminator
         self.latent = 4  # think of this as number of ideas for generating an art work (Generator)
         self.dim = len(self.data.features)  # it could be total point G can draw in the canvas
         self.num_of_gens = 1
@@ -75,7 +75,7 @@ class NN(object):
         # opt_Gs = [torch.optim.SGD(x.parameters(), lr = self.LR_G, momentum=0.0) for x in Gs]
 
         fig, ax = plt.subplots(2, 3)
-        for step in range(10):
+        for step in range(100):
 
             # add new genetaor
             print('Adding new attacker')
@@ -86,7 +86,7 @@ class NN(object):
 
 
             # train generator
-            for gen_iter in range(10000):
+            for gen_iter in range(2000):
                 real_samples = self.sample_data()           # real painting from artist
                 latent_samples = torch.cuda.FloatTensor(self.BATCH_SIZE, self.latent).uniform_()  # random ideas
                 gen_samples = G(latent_samples)
@@ -103,13 +103,16 @@ class NN(object):
                 opt_G.zero_grad()
                 G_loss.backward(retain_graph=True)
                 opt_G.step()
+                if gen_iter % 100 == 0:
+                    print("{}: G_loss {}".format(gen_iter, G_loss))
+                    self.plotAll(D, Gs, ax)
 
             # train discriminator
-            for disc_iter in range(10000):
+            for disc_iter in range(1000):
 
                 real_samples = self.sample_data()           # real painting from artist
                 latent_samples = torch.cuda.FloatTensor(self.BATCH_SIZE, self.latent).uniform_()  # random ideas
-                gen_samples = [G(latent_samples) for G in Gs]
+                gen_samples = [each_G(latent_samples) for each_G in Gs]
                 prob_of_insp_real = D(real_samples)  # D try to reduce this prob
                 utils = [gen_sample[:,0] for gen_sample in gen_samples]
 
@@ -118,33 +121,38 @@ class NN(object):
                 elif self.att_type=='add':
                     prob_of_insp_fake = [D(gen_sample + real_samples) for gen_sample in gen_samples]
 
-                D_loss = - (- torch.mul(torch.clamp(torch.mean(prob_of_insp_real) - self.FPrate, min=0), 100)
+                D_loss = - (- torch.exp(torch.mean(prob_of_insp_real) + 1 - self.FPrate)
                             - torch.mean(torch.mul(1-torch.cat(prob_of_insp_fake,0), torch.cat(utils, 0))))
 
                 opt_D.zero_grad()
                 D_loss.backward(retain_graph=True)  # reusing computational graph
                 opt_D.step()
+                if disc_iter % 100 == 0:
+                    print("{}: D_loss {}, FP {}".format(disc_iter, D_loss, torch.mean(prob_of_insp_real)))
+                    self.plotAll(D, Gs, ax)
 
-
-
-            if step % 1 == 0:  # plotting
-                print("D_loss {}, FP {}, G_loss {}".format(D_loss, torch.mean(prob_of_insp_real), G_loss))
-                print("FP {}, loss {}".format(torch.mean(prob_of_insp_real),
-                    torch.mean(torch.mul(1 - torch.cat(prob_of_insp_fake,0), torch.cat(utils,0)))
-                 ))
-
-                self.plot(D, ax, gen_samples, real_samples, G_loss)
-
-                plt.tight_layout()
-                plt.show()
-                plt.pause(0.0001)
-                D.train()
+            # if step % 1 == 0:  # plotting
+            #     self.plotAll(D, D_loss, G_loss, Gs, ax, prob_of_insp_fake, prob_of_insp_real, utils)
 
         plt.ioff()
         plt.show()
 
-    def plot(self, D, ax, gen_samples, real_samples, G_loss):
-        resolution = 20
+    def plotAll(self, D, Gs, ax):
+        # print("D_loss {}, FP {}, G_loss {}".format(D_loss, torch.mean(prob_of_insp_real), G_loss))
+        # print("FP {}, loss {}".format(torch.mean(prob_of_insp_real),
+        #     torch.mean(torch.mul(1 - torch.cat(prob_of_insp_fake, 0), torch.cat(utils, 0)))
+        # ))
+        real_samples = self.sample_data()  # real painting from artist
+        latent_samples = torch.cuda.FloatTensor(self.BATCH_SIZE, self.latent).uniform_()  # random ideas
+        gen_samples = [each_G(latent_samples) for each_G in Gs]
+        self.plot(D, ax, gen_samples, real_samples)
+        plt.tight_layout()
+        plt.show()
+        plt.pause(0.0001)
+        D.train()
+
+    def plot(self, D, ax, gen_samples, real_samples):
+        resolution = 40
         if len(self.data.feature_size) == 1:
 
             ax[0, 0].cla()
@@ -166,7 +174,7 @@ class NN(object):
             ax[0, 1].hist(real_samples.data.numpy(), density=True, color='blue')
             ax[0, 1].hist(gen.data.numpy(), density=True, color='red')
             ax[0, 1].plot(t.numpy().T[0], (1 - D(t).data.numpy().T[0]) * t.numpy().T[0], 'r-', label='att exp util')
-            ax[0, 1].plot(t.numpy().T[0], list(map(lambda x: 1+G_loss[0]/x, t.numpy().T[0])), 'b-', label='def opt stg')
+            # ax[0, 1].plot(t.numpy().T[0], list(map(lambda x: 1+G_loss[0]/x, t.numpy().T[0])), 'b-', label='def opt stg')
             ax[0, 1].set_xlim(left=0)
             ax[0, 1].set_ylim([0, 1])
             ax[0, 1].legend(loc='upper right')
