@@ -3,12 +3,13 @@ from scipy import stats
 import pandas as pd
 import argparse
 import matplotlib.pyplot as plt
+from nn import neuralNetworkAddingAttackers
+from nn import neuralNetwork
 
 from math import log
 from data_featured.dataset_featured import DatasetFeatures
 from probability_distribution.probability_distribution import ProbabilityDistribution
 from game.game import Game, UtilityFunctions
-from nn.neuralNetwork import NN
 
 
 # DEFINE CONSTANTS
@@ -78,7 +79,21 @@ def solve_simple_game_with_nn(data:DatasetFeatures, FPrate=0.1, discount=0.9, at
 
 
     print('Solving game ....')
-    neural = NN(data, util, FPrate, discount, att_type)
+    neural = neuralNetwork.NN(data, util, FPrate, discount, att_type)
+    neural.solve()
+    return 0
+
+def solve_simple_game_with_nn_added_attackers(data:DatasetFeatures, FPrate=0.1, discount=0.9, att_type='replace', plot=True):
+
+    # prepare inputs for the game
+    # util = UtilityFunctions.utilityUniform
+    # util = UtilityFunctions.utility1
+    util = UtilityFunctions.utilityMul
+    # util = UtilityFunctions.utilitySum
+
+
+    print('Solving game ....')
+    neural = neuralNetworkAddingAttackers.NN(data, util, FPrate, discount, att_type)
     neural.solve()
     return 0
 
@@ -297,11 +312,12 @@ if __name__ == '__main__':
     np.random.seed(42)
 
     if args.alg is False:
-        args.alg = 'nn'
+        # args.alg = 'nn'
+        args.alg = 'nn_adding_attackers'
         # args.alg = 'linProg'
-        # args.data = 'generate'
+        args.data = 'generate'
         # args.data = 'file_raw'
-        args.data = 'file_featured'
+        # args.data = 'file_featured'
         # args.datafile = '/home/kori/data/projects/NAB/data/artificialWithAnomaly/art_daily_flatmiddle.csv'
         args.datafile = '/home/kori/data/projects/avast-playground/adversarial-anomaly-detectior/data/data_5000_features_18_01_2019.pkl'
         args.att_type =  'replace'
@@ -337,6 +353,8 @@ if __name__ == '__main__':
         solve_simple_game(data, discretize=25, FPrate=0.10, att_type=args.att_type, discount=0, plot=True)
     elif args.alg == 'nn':
         solve_simple_game_with_nn(data, FPrate=0.1, att_type=args.att_type, discount=0, plot=True)
+    elif args.alg == 'nn_adding_attackers':
+        solve_simple_game_with_nn_added_attackers(data, FPrate=0.1, att_type=args.att_type, discount=0, plot=True)
 
         # solve_simple_game(data, discretize=4, FPrate=0.01, att_type=args.att_type, discount=0, plot=False)
         # solve_simple_game(data, discretize=5, FPrate=0.01, att_type='replace', discount=0, plot=True)
